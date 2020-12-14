@@ -6,6 +6,7 @@ class TestHashTableMethods(unittest.TestCase):
         table = HashTable()
         self.assertEqual(str(table), '{}')
         self.assertEqual(len(table), 0)
+        self.assertEqual(table.load_factor, 0)
     
     def test_update_ops(self):
         table = HashTable()
@@ -15,6 +16,7 @@ class TestHashTableMethods(unittest.TestCase):
         table[53] = "updated"
         self.assertEqual(table[53], "updated")
         self.assertEqual(len(table), 2)
+        self.assertAlmostEqual(table.load_factor, 0.06451613)
 
     def test_delete(self):
         table = HashTable()
@@ -23,6 +25,15 @@ class TestHashTableMethods(unittest.TestCase):
         del table[53]                           # or table.delete(53)
         with self.assertRaises(Exception):
             table[53]
+        self.assertAlmostEqual(table.load_factor, 0.03225806)
+    
+    def encoding(self):
+        with self.assertRaises(Exception):
+            HashTable.encode('q' * 20)
+        with self.assertRaises(Exception):
+            HashTable.encode(1.555)
+        with self.assertRaises(Exception):
+            HashTable.encode(2**32 + 2)
 
 if __name__ == "__main__":
     unittest.main()

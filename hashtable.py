@@ -1,25 +1,38 @@
-from typing import TypeVar, Generic, Callable
+from typing import TypeVar, Callable
+from random import randint, choices, shuffle
+import string
+import json
+import base64
+from scipy.stats import chisquare
+from math import sqrt
 
-T = TypeVar('T') # generic type
+T = TypeVar('T') # generic type (really, just str and int)
 
-# TODO: Find best hashing function
-# TODO: Add uniformity testing for hashing function i.e. Pearson's Chi Squared function
-# TODO: Add load factor calculation
-# TODO: Handle table resizing
+# TODO: Use proper english words for test
+# TODO: Make sense of Chi-square test
+# TODO: Find alternate(better) hashing function
+# TODO: Fix bug where we insert key at a probed location and try to lookup said key
+# TODO: Compare quadratic and linear probling
+# TODO: Cuckoo hashing
 
 class HashTable:
-    def __init__(self):
-        self.table_size: int = 100
+    def __init__(self, hash_function: Callable = None):
+        self.table_size: int = 31
         self.table: List[T] = [None] * self.table_size
         self.filled_count: int = 0
-        self.hash_fn = self.toy_hash # setup hashing function to use
+        self.hash_fn: Callable = self.prime_mod_hash if hash_function is None else hash_function
+        self.resize_threshold: float = 0.8
+
+        # for prime mod hash
+        self.a = randint(1, 2**32)
 
     def __len__(self) -> int:
         """ Returns number of (key, value) pairs in table """
         return self.filled_count
     
     def __repr__(self) -> str:
-        """ Returns a string representation of the hash table à la Python's dict's {key1: value1, key2: value2} """
+        """ Returns HashTable's string representation (à la Python's dict's {key1: value1, key2: value2, ..., keyN: valueN}) """
+
         r: str = "{"
         for pair in self.table:
             if pair is not None:
@@ -42,38 +55,71 @@ class HashTable:
     @property
     def load_factor(self) -> float:
         """ Calculate table's load factor """
-        # TODO
+        return self.filled_count / self.table_size
+    
+    @staticmethod
+    def encode(key: T) -> int:
+        """ Encode key as an integer (unique representation?) """
+
+        if isinstance(key, str):
+            if len(key) > 16:
+                raise Exception("Maximum string length is 16")
+            return int(base64.b16encode(key.encode('utf-8')), 16) # ascii printable characters only
+        elif isinstance(key, int):
+            if not -2**32 <= key <= 2 ** 32:
+                raise Exception("N should be in range -2**32 <= N <= 2**32")
+            if key < 1:
+                key = key * -1 + 2 ** 32
+            return 168139522478581358417196864848638410367 + key
+        else:
+            raise Exception(f"Cannot encode {type(key)} (Encoding only handles objects of type str and int)")
 
     @staticmethod
-    def toy_hash(key: T, table_size: int) -> int:
-        """ Hashing function """
-        int_equiv: int = hash(key) # get an int representation of T
-
-        # TODO: Your hash function customization goes here
-        idx: int = (int_equiv * 53) % table_size # toy "hashing function"
-        return idx
+    def prime_mod_hash(key: T, table_size: int, a: int) -> int:
+        """
+        h(k) = a*key mod m
+        Where m is a prime number (Table size is guaranteed to be a prime number)
+        """
+        return (a * HashTable.encode(key)) % table_size
 
     @staticmethod
-    def uniformity_test(self, fn: Callable) -> float:
-        """ Uniformity test for hash fn using Pearson's Chi squared function """
-        # TODO
+    def uniformity_test(fn: Callable) -> float:
+        """
+        Uniformity test for hash fn using Pearson's Chi squared test
+        Returns a p-value in range 0.0 < p <= 1.0 (higher is better?)
+        """
+
+        a = randint(1, 2**32)
+        table_size: int = 31
+        buckets: List[int] = [0] * table_size
+
+        with open("hash_test_set.json", "r") as f:
+            test_data = json.load(f)
+        
+        n_observations: int = len(test_data)
+        for x in test_data:
+            if fn == HashTable.prime_mod_hash:
+                buckets[fn(x, table_size, a)] += 1
+            else:
+                buckets[fn(x, table_size)] += 1
+
+        return chisquare(buckets)[1]
 
     def probe(self, start: int) -> int:
         """ For Open Addressing, probe linearly for next free position from start """
-        count: int = 0
+
         for i in range(self.table_size):
             idx = (start + i) % self.table_size
             if self.table[idx] is None: # found a free spot
                 return idx
-            count += 1
-            if count == self.table_size:
-                # hash table completely filled
-                # TODO: resize table
-                raise NotImplementedError("Table filled")
     
     def update(self, key: T, value: T) -> None:
         """ Handles inserts and updates of (key, value) pairs to hash table """
-        idx: int = self.hash_fn(key, self.table_size) # get an index location for 'key'
+
+        if self.load_factor >= self.resize_threshold:
+            self.resize() # increase table size once threshold is reached
+
+        idx: int = self.hash_fn(key, self.table_size, self.a) # get an index location for 'key'
         if self.table[idx] is None: # idx location not occupied
             self.table[idx] = (key, value)
             self.filled_count += 1
@@ -87,7 +133,8 @@ class HashTable:
     
     def lookup(self, key: T) -> T:
         """ Handles lookup of key in table. Returns value if key is found """
-        idx: int = self.hash_fn(key, self.table_size) # get an index location for 'key'
+
+        idx: int = self.hash_fn(key, self.table_size, self.a) # get an index location for 'key'
         if self.table[idx] is None: # 'key' doesn't exists in hash table
             raise Exception("Key doesn't exist in hashtable")
         else:
@@ -95,12 +142,45 @@ class HashTable:
     
     def delete(self, key: T) -> None:
         """ Deletes a (key, value) pair from the hash table """
-        idx: int = self.hash_fn(key, self.table_size) # get an index location for 'key'
+
+        idx: int = self.hash_fn(key, self.table_size, self.a) # get an index location for 'key'
         if self.table[idx] is None: # 'key' doesn't exists in hash table
             raise Exception("Key doesn't exist in hashtable")
         else:
             self.table[idx] = None # delete value at 'key'
             self.filled_count -= 1
+    
+    def resize(self) -> None:
+        """
+        Increases the table's size once the load factor reaches self.threshold
+        The table is resized to the smallest prime number > 2 * the current size
+        """
+
+        size: int = 2 * self.table_size + 1
+        while True:
+            is_prime: bool = True
+            for d in range(3, int(sqrt(size)) + 1):
+                if size % d == 0: # primality testing by trial division
+                    size += 2
+                    is_prime = False
+                    break
+            if is_prime:
+                break
+        
+        self.table.extend([None] * (size - self.table_size))
+        self.table_size = size
+    
+    @staticmethod
+    def generate_test_data() -> None:
+        """ Generates and writes representative test data to 'hash_test_set.json' """
+
+        tests = [''.join(choices(string.ascii_uppercase + string.ascii_lowercase + string.digits, k = randint(1, 16))) for _ in range(512)] # strings of length L (1 <= L <= 16)
+        tests.extend([randint(0, 2**32) for _ in range(384)]) # zero and positive numbers N (0, 4294967296)
+        tests.extend([randint(-2**32, -1) for _ in range(128)]) # negative numbers N (-4294967296, -1)
+        shuffle(tests)
+
+        with open("hash_test_set.json", 'w') as f:
+            json.dump(tests, f)
 
 if __name__ == "__main__":
     table = HashTable()
@@ -110,3 +190,9 @@ if __name__ == "__main__":
     table["asfsadf"] = 555555
     print(table['asfsadf'])
     print(table)
+
+    for i in range(100):
+        table[i] = i
+
+    # HashTable.generate_test_data()
+    print(HashTable.uniformity_test(HashTable.prime_mod_hash))
