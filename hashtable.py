@@ -1,6 +1,5 @@
 from typing import TypeVar, Callable
-from random import randint, choices, shuffle
-import string
+from random import randint
 import json
 import base64
 from scipy.stats import chisquare
@@ -8,7 +7,6 @@ from math import sqrt
 
 T = TypeVar('T') # generic type (really, just str and int)
 
-# TODO: Use proper english words for test
 # TODO: Make sense of Chi-square test
 # TODO: Find alternate(better) hashing function
 # TODO: Fix bug where we insert key at a probed location and try to lookup said key
@@ -17,7 +15,7 @@ T = TypeVar('T') # generic type (really, just str and int)
 
 class HashTable:
     def __init__(self, hash_function: Callable = None):
-        self.table_size: int = 31
+        self.table_size: int = 23
         self.table: List[T] = [None] * self.table_size
         self.filled_count: int = 0
         self.hash_fn: Callable = self.prime_mod_hash if hash_function is None else hash_function
@@ -63,6 +61,7 @@ class HashTable:
 
         if isinstance(key, str):
             if len(key) > 16:
+                print(key)
                 raise Exception("Maximum string length is 16")
             return int(base64.b16encode(key.encode('utf-8')), 16) # ascii printable characters only
         elif isinstance(key, int):
@@ -83,17 +82,16 @@ class HashTable:
         return (a * HashTable.encode(key)) % table_size
 
     @staticmethod
-    def uniformity_test(fn: Callable) -> float:
+    def uniformity_test(fn: Callable, table_size: int = 23) -> float:
         """
         Uniformity test for hash fn using Pearson's Chi squared test
         Returns a p-value in range 0.0 < p <= 1.0 (higher is better?)
         """
 
         a = randint(1, 2**32)
-        table_size: int = 31
         buckets: List[int] = [0] * table_size
 
-        with open("hash_test_set.json", "r") as f:
+        with open("google-10000-english-no-swears.txt", "r") as f:
             test_data = json.load(f)
         
         n_observations: int = len(test_data)
@@ -169,18 +167,6 @@ class HashTable:
         
         self.table.extend([None] * (size - self.table_size))
         self.table_size = size
-    
-    @staticmethod
-    def generate_test_data() -> None:
-        """ Generates and writes representative test data to 'hash_test_set.json' """
-
-        tests = [''.join(choices(string.ascii_uppercase + string.ascii_lowercase + string.digits, k = randint(1, 16))) for _ in range(512)] # strings of length L (1 <= L <= 16)
-        tests.extend([randint(0, 2**32) for _ in range(384)]) # zero and positive numbers N (0, 4294967296)
-        tests.extend([randint(-2**32, -1) for _ in range(128)]) # negative numbers N (-4294967296, -1)
-        shuffle(tests)
-
-        with open("hash_test_set.json", 'w') as f:
-            json.dump(tests, f)
 
 if __name__ == "__main__":
     table = HashTable()
@@ -194,5 +180,7 @@ if __name__ == "__main__":
     for i in range(100):
         table[i] = i
 
-    # HashTable.generate_test_data()
-    print(HashTable.uniformity_test(HashTable.prime_mod_hash))
+    for i in range(2, 256):
+        p = HashTable.uniformity_test(HashTable.prime_mod_hash, i)
+        if p > 0.0001:
+            print(f"{i}: {p}")
