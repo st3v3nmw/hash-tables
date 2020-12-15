@@ -1,5 +1,6 @@
 # hash-tables
 
-Using primes better than rehashing all entries.
-
-Linear probing has clustering, quadratic probing reduces this.
+1. Length of table must always be of prime length
+2. Double hashing
+3. Universal hashing scheme
+4. Dynamic resizing when load factors goes above a certain threshold
