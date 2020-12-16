@@ -18,7 +18,7 @@ class TestHashTableMethods(unittest.TestCase):
         table[53] = "updated"
         self.assertEqual(table[53], "updated")
         self.assertEqual(len(table), 2)
-        self.assertAlmostEqual(table.load_factor, 2 / HashTable.initial_size)
+        self.assertAlmostEqual(table.load_factor, 2 / table.table_size)
 
     def test_delete(self):
         table = HashTable()
@@ -27,7 +27,7 @@ class TestHashTableMethods(unittest.TestCase):
         del table[53]                           # or table.delete(53)
         with self.assertRaises(Exception):
             table[53]
-        self.assertAlmostEqual(table.load_factor, 1 / HashTable.initial_size)
+        self.assertAlmostEqual(table.load_factor, 1 / table.table_size)
     
     def test_encoding(self):
         with self.assertRaises(Exception):
@@ -44,7 +44,10 @@ class TestHashTableMethods(unittest.TestCase):
             self.assertEqual(table[key], test_data[key])
 
     def test_crc32(self):
-        self.assertEqual(HashTable.crc32_hash('hello-world', 23, HashTable.crc32_table(), 31), binascii.crc32(b'hello-world') % 23)
+        table = HashTable()
+        table.hash_fn = table.crc32_hash
+        self.assertEqual(table.crc32_hash("C'est la vie"), 0x2805c0d0 % table.table_size)
+        self.assertEqual(table.crc32_hash("hello-world"), binascii.crc32(b"hello-world") % table.table_size)
 
 if __name__ == "__main__":
     unittest.main()

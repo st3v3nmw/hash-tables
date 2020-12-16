@@ -1,17 +1,16 @@
 from typing import TypeVar, Callable, List
 from random import randint
-from math import sqrt
 
 T = TypeVar('T')
 
-class HashTable:
-    initial_size: int = 23
+# TODO: Fix bug in update fn (some values hash to 2 different locations for some reason)
 
-    def __init__(self, hash_function: Callable = None):
-        self.table_size: int = self.initial_size
+class HashTable:
+    def __init__(self):
+        self.table_size: int = 23
         self.table: List[(T, T)] = [None] * self.table_size
         self.filled_count: int = 0
-        self.hash: Callable = HashTable.crc32_hash if hash_function is None else hash_function
+        self.hash_fn: Callable = self.crc32_hash # or self.prime_mod_hash
         self.resize_threshold: float = 0.75
         self.a: int = randint(1, 2**32) # for prime mod hash
         self.b: int = randint(1, 2**32) # for secondary hashing function
@@ -51,33 +50,31 @@ class HashTable:
     def encode(key: T) -> int:
         """
         Encode key (str or int) as an integer
-        strings of arbitrary length are encoded using a polynomial rolling hash scheme
+        Strings of arbitrary length are encoded using a polynomial rolling hash scheme
         """
         
         if isinstance(key, str):
-            r: int = 0
-            p: int = 97 # p should roughly equal the number of characters in the input alphabet i.e. 95 printable ASII chars
-            m: int = 32361122672259149 # now that's a prime :), 19th in A118839 OEIS
+            result: int = 0
+            p: int = 97 # p should roughly equal the number of characters in the input alphabet, we have 95 printable ASII chars
+            m: int = 32361122672259149 # now that's a prime :), 19th in OEIS A118839
             p_pow: int = 1
             for c in key:
-                r = (r + ord(c) * p_pow) % m
+                result = (result + ord(c) * p_pow) % m
                 p_pow = (p_pow * p) % m
-            return r
+            return result
         elif isinstance(key, int):
             return key
         else:
             raise Exception(f"Cannot encode {type(key)} (Only strs and ints are supported)")
 
-    @staticmethod
-    def prime_mod_hash(key: T, table_size: int, a: int) -> int:
-        """
-        h(k) = (a * key) mod m
-        Where m is a prime number (Table size is guaranteed to be a prime number)
-        """
-        return (a * HashTable.encode(key)) % table_size
+    def prime_mod_hash(self, key: T) -> int:
+        """ Returns a hash of key using h(k) = (a * key) mod m where m is a prime number """
+        return (self.a * self.encode(key)) % self.table_size
     
     @staticmethod
     def crc32_table() -> List[int]:
+        """ Returns a table of values for use with the CRC32 hash """
+
         table: List[int] = []
         for i in range(256):
             k: int = i
@@ -88,20 +85,21 @@ class HashTable:
             table.append(k)
         return table
 
-    @staticmethod
-    def crc32_hash(key: T, table_size: int, crc_table: List[int], a: int) -> int:
+    def crc32_hash(self, key: T) -> int:
+        """ Returns a hash of key using CRC32 """
+
         if isinstance(key, str):
             crc32: int = 0xffffffff
             for b in key.encode('utf-8'):
-                crc32 = (crc32 >> 8) ^ crc_table[(crc32 & 0xff) ^ b]
+                crc32 = (crc32 >> 8) ^ self.crc32_table[(crc32 & 0xff) ^ b]
             crc32 ^= 0xffffffff # invert all bits
-            return crc32 % table_size
+            return crc32 % self.table_size
         else:
-            return HashTable.prime_mod_hash(key, table_size, a)
+            return self.prime_mod_hash(key)
     
     def h2(self, key) -> int:
         """ Secondary hashing function for double hashing """
-        idx: int = self.prime_mod_hash(key, self.table_size, self.b)
+        idx: int = (self.b * self.encode(key)) % self.table_size
         return idx if idx != 0 else 1
 
     def find(self, key: T) -> int:
@@ -192,10 +190,3 @@ class HashTable:
         for pair in temp:
             if pair is not None:
                 self[pair[0]] = pair[1]
-    
-    def hash_fn(self, key: T) -> int:
-        """ Wrapper for self.hash to handle instances of prime_mod_hash and crc32 """
-        if self.hash == HashTable.prime_mod_hash:
-            return self.prime_mod_hash(key, self.table_size, self.a)
-        elif self.hash == HashTable.crc32_hash:
-            return self.crc32_hash(key, self.table_size, self.crc32_table, self.a)

@@ -1,6 +1,6 @@
 # CSC311 Project 1: Hash Tables
 
-### Participants
+### Group Members
 
 1. Jerim Otieno - P15/
 2. Mwangi Stephen Kioni - P15/1198/2018
