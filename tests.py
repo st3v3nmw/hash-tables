@@ -1,6 +1,7 @@
 import unittest
 from hashtable import HashTable
 from random import randint, random
+import binascii
 
 class TestHashTableMethods(unittest.TestCase):
     def test_empty_table(self):
@@ -30,20 +31,20 @@ class TestHashTableMethods(unittest.TestCase):
     
     def test_encoding(self):
         with self.assertRaises(Exception):
-            HashTable.encode('q' * 20)
-        with self.assertRaises(Exception):
             HashTable.encode(1.555)
-        with self.assertRaises(Exception):
-            HashTable.encode(2**32 + 2)
+        self.assertEqual(HashTable.encode("Azc8{"), 10941154641)
         
     def test_en_masse(self):
         table = HashTable()
-        test_data = {randint(1, 100): random() for _ in range(64)}
+        test_data = {randint(1, 1024): random() for _ in range(512)}
         for key in test_data:
             table[key] = test_data[key]
 
         for key in test_data:
             self.assertEqual(table[key], test_data[key])
+
+    def test_crc32(self):
+        self.assertEqual(HashTable.crc32_hash('hello-world', 23, HashTable.crc32_table(), 31), binascii.crc32(b'hello-world') % 23)
 
 if __name__ == "__main__":
     unittest.main()

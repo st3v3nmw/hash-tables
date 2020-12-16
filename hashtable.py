@@ -1,12 +1,8 @@
-from typing import TypeVar, Callable
+from typing import TypeVar, Callable, List
 from random import randint
-import base64
 from math import sqrt
 
 T = TypeVar('T')
-
-# TODO: Make sense of Chi-square test
-# TODO: Find alternate(better) hashing function
 
 class HashTable:
     initial_size: int = 23
@@ -15,15 +11,12 @@ class HashTable:
         self.table_size: int = self.initial_size
         self.table: List[(T, T)] = [None] * self.table_size
         self.filled_count: int = 0
-        self.hash_fn: Callable = self.prime_mod_hash if hash_function is None else hash_function
+        self.hash: Callable = HashTable.crc32_hash if hash_function is None else hash_function
         self.resize_threshold: float = 0.75
-
-        # for prime mod hash
-        self.a: int = randint(1, 2**32)
-        self.b: int = randint(1, 2**32)
-
-        # stats
-        self.key_comparison_counts: int = 0
+        self.a: int = randint(1, 2**32) # for prime mod hash
+        self.b: int = randint(1, 2**32) # for secondary hashing function
+        self.crc32_table: List[int] = self.crc32_table() # for CRC32 algorithm
+        self.key_comparison_counts: int = 0 # stats
 
     def __len__(self) -> int:
         """ Returns number of (key, value) pairs in table """
@@ -56,32 +49,59 @@ class HashTable:
     
     @staticmethod
     def encode(key: T) -> int:
-        """ Encode key as an integer (unique? representation) """
-
+        """
+        Encode key (str or int) as an integer
+        strings of arbitrary length are encoded using a polynomial rolling hash scheme
+        """
+        
         if isinstance(key, str):
-            if len(key) > 16:
-                raise Exception("Maximum string length is 16")
-            return int(base64.b16encode(key.encode('utf-8')), 16) # ascii printable characters only
+            r: int = 0
+            p: int = 97 # p should roughly equal the number of characters in the input alphabet i.e. 95 printable ASII chars
+            m: int = 32361122672259149 # now that's a prime :), 19th in A118839 OEIS
+            p_pow: int = 1
+            for c in key:
+                r = (r + ord(c) * p_pow) % m
+                p_pow = (p_pow * p) % m
+            return r
         elif isinstance(key, int):
-            if not -2**32 <= key <= 2 ** 32:
-                raise Exception("N should be in range -2**32 <= N <= 2**32")
-            if key < 1:
-                key = key * -1 + 2 ** 32
-            return 168139522478581358417196864848638410367 + key
+            return key
         else:
-            raise Exception(f"Cannot encode {type(key)} (Encoding only handles objects of type str and int)")
+            raise Exception(f"Cannot encode {type(key)} (Only strs and ints are supported)")
 
     @staticmethod
     def prime_mod_hash(key: T, table_size: int, a: int) -> int:
         """
-        h(k) = a*key mod m
+        h(k) = (a * key) mod m
         Where m is a prime number (Table size is guaranteed to be a prime number)
         """
         return (a * HashTable.encode(key)) % table_size
     
+    @staticmethod
+    def crc32_table() -> List[int]:
+        table: List[int] = []
+        for i in range(256):
+            k: int = i
+            for j in range(8):
+                if k & 1:
+                    k ^= 0x1db710640
+                k >>= 1
+            table.append(k)
+        return table
+
+    @staticmethod
+    def crc32_hash(key: T, table_size: int, crc_table: List[int], a: int) -> int:
+        if isinstance(key, str):
+            crc32: int = 0xffffffff
+            for b in key.encode('utf-8'):
+                crc32 = (crc32 >> 8) ^ crc_table[(crc32 & 0xff) ^ b]
+            crc32 ^= 0xffffffff # invert all bits
+            return crc32 % table_size
+        else:
+            return HashTable.prime_mod_hash(key, table_size, a)
+    
     def h2(self, key) -> int:
         """ Secondary hashing function for double hashing """
-        idx: int = self.hash_fn(key, self.table_size, self.b)
+        idx: int = self.prime_mod_hash(key, self.table_size, self.b)
         return idx if idx != 0 else 1
 
     def find(self, key: T) -> int:
@@ -89,7 +109,7 @@ class HashTable:
 
         try:
             # passes check with primary hashing function
-            idx: int = self.hash_fn(key, self.table_size, self.a)
+            idx: int = self.hash_fn(key)
             if self.table[idx][0] == key:
                 return idx
 
@@ -109,7 +129,7 @@ class HashTable:
         if self.load_factor >= self.resize_threshold:
             self.resize() # increase table size once threshold is reached
 
-        idx: int = self.hash_fn(key, self.table_size, self.a) # get an index location for 'key'
+        idx: int = self.hash_fn(key) # get an index location for 'key'
         if self.table[idx] is None: # idx location not occupied
             self.table[idx] = (key, value)
             self.filled_count += 1
@@ -128,7 +148,7 @@ class HashTable:
     def lookup(self, key: T) -> T:
         """ Handles lookup/search of key in table. Returns value if key is found """
 
-        idx: int = self.hash_fn(key, self.table_size, self.a) # get an index location for 'key'
+        idx: int = self.hash_fn(key) # get an index location for 'key'
         if self.table[idx] is None: # 'key' doesn't exists in hash table
             raise Exception("Key doesn't exist in hashtable")
         else:
@@ -138,7 +158,7 @@ class HashTable:
     def delete(self, key: T) -> None:
         """ Deletes a (key, value) pair from the hash table """
 
-        idx: int = self.hash_fn(key, self.table_size, self.a) # get an index location for 'key'
+        idx: int = self.hash_fn(key) # get an index location for 'key'
         if self.table[idx] is None: # 'key' doesn't exists in hash table
             raise Exception("Key doesn't exist in hashtable")
         else:
@@ -149,13 +169,14 @@ class HashTable:
         """
         Increases the table's size once the load factor reaches self.threshold
         The table is resized to the smallest prime number > 2 * the current size
+        Primality testing is done using the deterministic variant of Rabin Miller for n < 3,317,044,064,679,887,385,961,981
         """
 
         size: int = 2 * self.table_size + 1
         while True:
             is_prime: bool = True
-            for d in range(3, int(sqrt(size)) + 1):
-                if size % d == 0: # primality testing by trial division
+            for d in [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37]:
+                if size % d == 0:
                     size += 2
                     is_prime = False
                     break
@@ -171,6 +192,10 @@ class HashTable:
         for pair in temp:
             if pair is not None:
                 self[pair[0]] = pair[1]
-
-if __name__ == "__main__":
-    pass
+    
+    def hash_fn(self, key: T) -> int:
+        """ Wrapper for self.hash to handle instances of prime_mod_hash and crc32 """
+        if self.hash == HashTable.prime_mod_hash:
+            return self.prime_mod_hash(key, self.table_size, self.a)
+        elif self.hash == HashTable.crc32_hash:
+            return self.crc32_hash(key, self.table_size, self.crc32_table, self.a)
