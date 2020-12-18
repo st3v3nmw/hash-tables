@@ -65,7 +65,7 @@ class HashTable:
         elif isinstance(key, int):
             return key
         else:
-            raise Exception(f"Cannot encode {type(key)} (Only strs and ints are supported)")
+            raise Exception(f"Cannot encode {type(key)} (Only strings and integers are supported)")
 
     def prime_mod_hash(self, key: T) -> int:
         """ Returns a hash of key using h(k) = (a * key) mod m where m is a prime number """
@@ -112,6 +112,7 @@ class HashTable:
                 return idx
 
             # use secondary function to find an interval to use
+            # the they had no matching value, Linear probing using double hashing is used to ove to the next key
             idx2: int = self.h2(key)
             i: int = 1
             while self.table[(idx + i * idx2) % self.table_size][0] != key:
@@ -181,7 +182,7 @@ class HashTable:
             if is_prime:
                 break
 
-        # rehash all entries
+        # rehash all entries of the hash table after the increase in table size
         temp: List[(T, T)] = self.table
         self.table_size = size
         self.table = [None] * self.table_size
