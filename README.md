@@ -29,13 +29,12 @@ $$\chi^2 = \sum\limits_{i=1}^n\frac{(O_i - E_i)^2}{E_i}$$
 
 ### Discussion
 
-#### Sample output
 
 #### Output from the test data
-![test data](output_sample/1.png) "test_data")
+![test data](output_sample/1.png "test_data")
 
 #### Output from the unittest module
-![unittest_output](output_sample/2.png) "unittest output")
+![unittest_output](output_sample/2.png "unittest output")
 
 # References
 
