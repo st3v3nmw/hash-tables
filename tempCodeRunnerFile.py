@@ -1,0 +1,1 @@
+Pearson's Chi squared test
