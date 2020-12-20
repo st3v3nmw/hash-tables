@@ -3,8 +3,6 @@ from random import randint
 
 T = TypeVar('T')
 
-# TODO: Fix bug in update fn (some values hash to 2 different locations for some reason)
-
 class HashTable:
     def __init__(self):
         self.table_size: int = 23
@@ -112,7 +110,7 @@ class HashTable:
                 return idx
 
             # use secondary function to find an interval to use
-            # the they had no matching value, Linear probing using double hashing is used to ove to the next key
+            # i.e. if they had no matching value, double hashing is used to probe to the next key
             idx2: int = self.h2(key)
             i: int = 1
             while self.table[(idx + i * idx2) % self.table_size][0] != key:
@@ -191,3 +189,33 @@ class HashTable:
         for pair in temp:
             if pair is not None:
                 self[pair[0]] = pair[1]
+    
+def key_comparison_stats(n: int, test_data: List[str]) -> (float, int):
+    mmax: int = 0
+    total: int = 0
+    for _ in range(1024):
+        table = HashTable()
+        for t in ts[:n]:
+            table[t] = 1
+        
+        for t in ts[:n]:
+            table.key_comparison_counts = 0
+            table[t]
+            mmax = max(table.key_comparison_counts, mmax)
+            total += table.key_comparison_counts
+    return total / (len(table) * 1024), mmax
+
+if __name__ == "__main__":
+    ts: List[str] = ["the", "of", "and", "to", "a", "in", "for", "is", "on", "that", "by", "this", "with", "i", "you", "it", "not", "or", "be", "are", "from", "at", "as", "your", "all", "have", "new", "more", "an", "was", "we", "will", "home", "can", "us", "about", "if", "page", "my", "has", "search", "free", "but", "our", "one", "other", "do", "no", "information", "time"]
+
+    print("Input size of 6")
+    t: (float, int) = key_comparison_stats(6, ts)
+    print(f"Average is: {t[0]}, Max is: {t[1]}")
+
+    print("\nInput size of 20")
+    t: (float, int) = key_comparison_stats(20, ts)
+    print(f"Average is: {t[0]}, Max is: {t[1]}")
+
+    print("\nInput size of 50")
+    t: (float, int) = key_comparison_stats(50, ts)
+    print(f"Average is: {t[0]}, Max is: {t[1]}")

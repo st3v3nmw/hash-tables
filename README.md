@@ -1,40 +1,19 @@
 # CSC311 Project 1: Hash Tables
 
-### Group Members
-
-1. Jerim Otieno - P15/1231/2018
-2. Mwangi Stephen Kioni - P15/1198/2018
-3. Mutuku Moses - P15/1229/2018
-
-## Design
-
-### Algorithm
-
-#### Pointers
+## Random stuff
 
 - Length of table must always be of prime length
 - Double hashing
 - Universal hashing scheme
 - Dynamic resizing when the load factor goes above a certain threshold
-
-### Complexity Analysis
-
-### Experimental Results
-
-Google's English Words dataset, representative set...
-
-**Pearson's Chi Squared test**
-
-$$\chi^2 = \sum\limits_{i=1}^n\frac{(O_i - E_i)^2}{E_i}$$
-
-### Discussion
-
-
-#### Output from the test data
-![test data](output_sample/1.png "test_data")
-
-#### Output from the unittest module
-![unittest_output](output_sample/2.png "unittest output")
+- Google's English Words dataset, representative set...
+- Pearson's Chi Squared test:
+    - $$\chi^2 = \sum\limits_{i=1}^n\frac{(O_i - E_i)^2}{E_i}$$
+    - CRC 32    => Average is: 1.0001, Max is:  1.0078
+    - Prime mod => Average is: 3.0980, Max is: 89.6704
+- Key Comparion counts:
+    - CRC 32    => {6, ave: 1.0218, max: 2}, {20, ave: 1.0469, max:  6}, {50, ave: 1.1570, max: 10}
+    - Prime mod => {6, ave: 1.0016, max: 2}, {20, ave: 1.1446, max: 19}, {50, ave: 2.4902, max: 22}
 
 # References
 
