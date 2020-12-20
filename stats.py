@@ -1,5 +1,7 @@
 from hashtable import HashTable
 import json
+import matplotlib.pyplot as plt
+from typing import List
 
 def uniformity_test(table_size: int) -> float:
     """
@@ -25,25 +27,16 @@ def uniformity_test(table_size: int) -> float:
 
 if __name__ == "__main__":
     # test uniformity for prime_mod_hash function for various table sizes s
+    xs: List[int] = []
+    ys: List[int] = []
     for s in range(2, 256):
-        p = uniformity_test(s)
-        print(f"{s}: {p}")
-
-
-    # ts = ["the", "of", "and", "to", "a", "in", "for", "is", "on", "that", "by", "this", "with", "i", "you", "it", "not", "or", "be", "are", "from", "at", "as", "your", "all", "have", "new", "more", "an", "was", "we", "will", "home", "can", "us", "about", "if", "page", "my", "has", "search", "free", "but", "our", "one", "other", "do", "no", "information", "time", "they", "site", "he", "up", "may", "what", "which", "their", "news", "out", "use", "any", "there", "see", "only", "so", "his", "when", "contact", "here", "business", "who", "web", "also", "now", "help", "get", "pm", "view", "online", "c", "e", "first", "am", "been", "would", "how", "were", "me", "s", "services", "some", "these", "click", "its", "like", "service", "x", "than", "find"]
-
-    # mmax = 0
-    # total = 0
-    # for _ in range(1024):
-    #     # Key comparison counts stats
-    #     table = HashTable()
-    #     for t in ts[:50]:
-    #         table[t] = 1
-        
-    #     for t in ts[:50]:
-    #         table.key_comparison_counts = 0
-    #         table[t]
-    #         mmax = max(table.key_comparison_counts, mmax)
-    #         total += table.key_comparison_counts
-    
-    # print(mmax, total / (len(table) * 1024))
+        xs.append(s)
+        ys.append(uniformity_test(s))
+    print(f"Average is: {sum(ys) / len(ys)}, Max is: {max(ys)}")
+    plt.title("Uniformity Test")
+    plt.plot(xs, ys)
+    plt.xticks([i for i in range(0, 261, 10)])
+    plt.ylim([0,10])
+    plt.yticks([i for i in range(10)])
+    plt.grid()
+    plt.show()
