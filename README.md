@@ -1,4 +1,4 @@
-# CSC311 Project 1: Hash Tables
+# Hash Tables
 
 ## Random stuff
 
