@@ -15,6 +15,10 @@
     - CRC 32    => {6, ave: 1.0218, max: 2}, {20, ave: 1.0469, max:  6}, {50, ave: 1.1570, max: 10}
     - Prime mod => {6, ave: 1.0016, max: 2}, {20, ave: 1.1446, max: 19}, {50, ave: 2.4902, max: 22}
 
+## Runtime improvement
+
+- Use CRC32 only (remove prime_mod_hash and resizing to a prime number)
+
 # References
 
 https://en.wikipedia.org/wiki/Cyclic_redundancy_check#CRC-32_algorithm

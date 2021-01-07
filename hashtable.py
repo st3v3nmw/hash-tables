@@ -1,5 +1,6 @@
 from typing import TypeVar, Callable, List
 from random import randint
+from bisect import bisect_left
 
 T = TypeVar('T')
 
@@ -14,6 +15,7 @@ class HashTable:
         self.b: int = randint(1, 2**32) # for secondary hashing function
         self.crc32_table: List[int] = self.crc32_table() # for CRC32 algorithm
         self.key_comparison_counts: int = 0 # stats
+        self.primes_table: List[int] = self.primes_below_n(128)
 
     def __len__(self) -> int:
         """ Returns number of (key, value) pairs in table """
@@ -166,19 +168,13 @@ class HashTable:
         """
         Increases the table's size once the load factor reaches self.threshold
         The table is resized to the smallest prime number > 2 * the current size
-        Primality testing is done using the deterministic variant of Rabin Miller for n < 3,317,044,064,679,887,385,961,981
+        Sieve of Eratosthenes used for primes.
         """
 
         size: int = 2 * self.table_size + 1
-        while True:
-            is_prime: bool = True
-            for d in [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37]:
-                if size % d == 0:
-                    size += 2
-                    is_prime = False
-                    break
-            if is_prime:
-                break
+        if size > self.primes_table[len(self.primes_table) - 1]:
+            self.primes_table = self.primes_below_n(10 * size)
+        size: int = self.primes_table[bisect_left(self.primes_table, size)]
 
         # rehash all entries of the hash table after the increase in table size
         temp: List[(T, T)] = self.table
@@ -189,6 +185,24 @@ class HashTable:
         for pair in temp:
             if pair is not None:
                 self[pair[0]] = pair[1]
+    
+    @staticmethod
+    def primes_below_n(n: int) -> List[int]:
+        sieve: List[bool] = [True] * n
+        p: int = 2
+        k: int = 2
+        primes: List[int] = [2]
+        while p < n:
+            while k*p < n:
+                sieve[k*p] = False
+                k += 1
+            try:
+                p = sieve.index(True, p+1)
+                k = 2
+                primes.append(p)
+            except ValueError:
+                break
+        return primes
     
 def key_comparison_stats(n: int, test_data: List[str]) -> (float, int):
     mmax: int = 0
